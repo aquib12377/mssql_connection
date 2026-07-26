@@ -381,6 +381,11 @@ typedef _dbconvertDart =
       int,
     );
 
+// Standard libc function for setting environment variables
+/// C: int setenv(const char *name, const char *value, int overwrite)
+typedef _setenvC = Int32 Function(Pointer<Utf8>, Pointer<Utf8>, Int32);
+typedef _setenvDart = int Function(Pointer<Utf8>, Pointer<Utf8>, int);
+
 // Loader of symbols from libsybdb
 class DBLib {
   /*
@@ -454,6 +459,9 @@ class DBLib {
   late final _bcp_collenDart bcp_collen;
   late final _bcp_colptrDart bcp_colptr;
   late final _dbconvertDart dbconvert;
+
+  // Optional: setenv from libc for environment variable configuration
+  _setenvDart? _setenv;
 
   DBLib(this._lib) {
     // Lookups: Connection lifecycle (init/login/open/close)
@@ -573,6 +581,15 @@ class DBLib {
     dbconvert = _lib.lookupFunction<_dbconvertC, _dbconvertDart>(
       'dbconvert',
     ); // Convert values (fallback)
+
+    // Try to load setenv from libc for environment variable support
+    try {
+      final libc = DynamicLibrary.open('libc.so.6');
+      _setenv = libc.lookupFunction<_setenvC, _setenvDart>('setenv');
+    } catch (_) {
+      // setenv not available; environment configuration will be skipped
+      _setenv = null;
+    }
   }
 
   /// Set the username on a LOGINREC using the DBSETUSER selector.
@@ -604,6 +621,21 @@ class DBLib {
       dbsetlname(login, password, DBSETPWD);
 
   static DBLib load() => DBLib(NativeLoader.loadDBLib());
+
+  /// Set an environment variable. Returns true on success, false otherwise.
+  /// Note: This requires libc.so.6 to be available.
+  bool setEnvironmentVariable(String name, String value) {
+    if (_setenv == null) return false;
+    final n = name.toNativeUtf8();
+    final v = value.toNativeUtf8();
+    try {
+      final rc = _setenv!(n, v, 1); // overwrite=1
+      return rc == 0;
+    } finally {
+      malloc.free(n);
+      malloc.free(v);
+    }
+  }
 
   // Expose latest DB-Lib error/message captured by installed handlers.
   // These are per-DBPROCESS (or 0 for library-level) and are cleared on read.

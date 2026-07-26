@@ -19,6 +19,7 @@ class MssqlClient {
   DBLib? _db;
   Pointer<DBPROCESS>? _dbproc;
   bool _connected = false;
+  String? _lastError;
 
   MssqlClient({
     required this.server,
@@ -27,6 +28,7 @@ class MssqlClient {
   });
 
   bool get isConnected => _connected;
+  String? get lastError => _lastError;
 
   /// Establish a DB-Lib connection to [server] using [username]/[password].
   ///
@@ -44,14 +46,33 @@ class MssqlClient {
   /// [loginTimeoutSeconds] controls how long DB-Lib waits to establish a socket
   /// connection/login before failing. Default is 15 seconds.
   ///
+  /// [enableTraceDump] when true, enables verbose FreeTDS tracing to a file in the app's
+  /// temporary directory. The file path can be retrieved for inspection.
+  ///
   /// Logging: emits lines in the form `connect | key=value | ...` for traceability.
-  Future<bool> connect({int loginTimeoutSeconds = 15}) async {
+  /// On failure, [lastError] will contain the FreeTDS error message if available.
+  Future<bool> connect({
+    int loginTimeoutSeconds = 15,
+    bool enableTraceDump = false,
+  }) async {
     if (_connected) {
       MssqlLogger.i('connect | already-connected=true');
       return true;
     }
     try {
+      _lastError = null;
       MssqlLogger.i('connect | op=init | status=start');
+
+      // Enable verbose FreeTDS tracing if requested
+      if (enableTraceDump) {
+        try {
+          await _enableTdsDump();
+          MssqlLogger.i('connect | op=tdsdump | status=enabled');
+        } catch (e) {
+          MssqlLogger.w('connect | op=tdsdump | error=$e');
+        }
+      }
+
       // Preflight: if server string looks like host:port, try a quick TCP probe
       final hp = _splitHostPort(server);
       if (hp != null) {
@@ -141,7 +162,11 @@ class MssqlClient {
       }
 
       if (_dbproc == nullptr) {
-        MssqlLogger.e('connect | op=dbopen | server=$server | error=nullptr');
+        // Retrieve FreeTDS error message if available
+        _lastError = DBLib.takeLastError(nullptr) ??
+            DBLib.takeLastMessage(nullptr) ??
+            'Connection failed (no additional details)';
+        MssqlLogger.e('connect | op=dbopen | server=$server | error=$_lastError');
         return false;
       }
 
@@ -228,6 +253,51 @@ class MssqlClient {
       _connected = false;
       MssqlLogger.i('close | status=disconnected');
     }
+  }
+
+  /// Enable verbose FreeTDS tracing via TDSDUMP environment variable.
+  ///
+  /// Returns the path to the trace file if successful, or null if tracing
+  /// cannot be enabled (e.g., libc.setenv not available).
+  ///
+  /// The trace file will contain detailed FreeTDS protocol messages and
+  /// can be read back via [getTdsDumpContents].
+  Future<String?> _enableTdsDump() async {
+    if (_db == null) return null;
+
+    try {
+      // Use a predictable location in the system temp directory
+      final tmpDir = Directory.systemTemp;
+      final traceFile = '${tmpDir.path}${Platform.pathSeparator}freetds_trace_${DateTime.now().millisecondsSinceEpoch}.log';
+
+      final ok = _db!.setEnvironmentVariable('TDSDUMP', traceFile);
+      if (ok) {
+        MssqlLogger.i('_enableTdsDump | path=$traceFile | status=set');
+        return traceFile;
+      }
+    } catch (e) {
+      MssqlLogger.w('_enableTdsDump | error=$e');
+    }
+    return null;
+  }
+
+  /// Retrieve the contents of the FreeTDS trace file if tracing was enabled.
+  ///
+  /// Returns the trace file contents as a string, or null if the trace file
+  /// does not exist or cannot be read.
+  ///
+  /// Note: The trace file path must have been previously obtained from
+  /// [_enableTdsDump] or you can infer it from the TDSDUMP environment variable.
+  Future<String?> getTdsDumpContents(String traceFilePath) async {
+    try {
+      final file = File(traceFilePath);
+      if (await file.exists()) {
+        return await file.readAsString();
+      }
+    } catch (e) {
+      MssqlLogger.w('getTdsDumpContents | error=$e');
+    }
+    return null;
   }
 
   /// Bulk insert rows into [tableName].
