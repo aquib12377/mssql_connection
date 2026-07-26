@@ -19,6 +19,16 @@ class MssqlConnection {
 
   bool get isConnected => _client?.isConnected == true;
 
+  /// Returns the last FreeTDS error message if connection failed, or null.
+  String? get lastError => _client?.lastError;
+
+  /// Retrieve the contents of the FreeTDS TDSDUMP trace file if tracing was enabled.
+  ///
+  /// [traceFilePath] should be obtained from a previous connection attempt that had
+  /// [enableTraceDump] set to true. Returns the trace contents or null if unavailable.
+  Future<String?> getTdsDumpContents(String traceFilePath) async =>
+      await _client?.getTdsDumpContents(traceFilePath);
+
   Future<bool> connect({
     required String ip,
     required String port,
@@ -26,6 +36,10 @@ class MssqlConnection {
     required String username,
     required String password,
     int timeoutInSeconds = 15,
+    bool enableTraceDump = false,
+    String? tdsVersion,
+    String? encryption,
+    String? opensslCiphers,
   }) async {
     // Basic input validation to prevent invalid dbopen calls and fail fast.
     final _ipTrim = ip.trim();
@@ -70,7 +84,13 @@ class MssqlConnection {
         username: _userTrim,
         password: _pwd,
       );
-      final ok = await _client!.connect(loginTimeoutSeconds: _timeout);
+      final ok = await _client!.connect(
+        loginTimeoutSeconds: _timeout,
+        enableTraceDump: enableTraceDump,
+        tdsVersion: tdsVersion,
+        encryption: encryption,
+        opensslCiphers: opensslCiphers,
+      );
       if (!ok) return false;
 
       // Select database for this session.

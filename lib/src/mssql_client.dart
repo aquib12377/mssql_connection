@@ -49,11 +49,23 @@ class MssqlClient {
   /// [enableTraceDump] when true, enables verbose FreeTDS tracing to a file in the app's
   /// temporary directory. The file path can be retrieved for inspection.
   ///
+  /// [tdsVersion] specifies the TDS protocol version (e.g., "7.4", "7.3", "7.2").
+  /// If provided, a freetds.conf file is generated and FREETDSCONF is set.
+  ///
+  /// [encryption] sets encryption policy: "off" to disable, "request" (default),
+  /// or "require". Only effective with custom tdsVersion.
+  ///
+  /// [opensslCiphers] specifies OpenSSL cipher suite. Only effective with custom
+  /// tdsVersion. Useful for debugging cipher/protocol issues.
+  ///
   /// Logging: emits lines in the form `connect | key=value | ...` for traceability.
   /// On failure, [lastError] will contain the FreeTDS error message if available.
   Future<bool> connect({
     int loginTimeoutSeconds = 15,
     bool enableTraceDump = false,
+    String? tdsVersion,
+    String? encryption,
+    String? opensslCiphers,
   }) async {
     if (_connected) {
       MssqlLogger.i('connect | already-connected=true');
@@ -70,6 +82,20 @@ class MssqlClient {
           MssqlLogger.i('connect | op=tdsdump | status=enabled');
         } catch (e) {
           MssqlLogger.w('connect | op=tdsdump | error=$e');
+        }
+      }
+
+      // Configure FreeTDS settings if custom options provided
+      if (tdsVersion != null || encryption != null || opensslCiphers != null) {
+        try {
+          await _configureFreeTds(
+            tdsVersion: tdsVersion,
+            encryption: encryption,
+            opensslCiphers: opensslCiphers,
+          );
+          MssqlLogger.i('connect | op=freetds-conf | status=configured');
+        } catch (e) {
+          MssqlLogger.w('connect | op=freetds-conf | error=$e');
         }
       }
 
@@ -298,6 +324,65 @@ class MssqlClient {
       MssqlLogger.w('getTdsDumpContents | error=$e');
     }
     return null;
+  }
+
+  /// Configure FreeTDS with custom settings by writing freetds.conf.
+  ///
+  /// Generates a minimal freetds.conf file in the temp directory with the
+  /// specified TDS version, encryption, and cipher settings, then sets
+  /// FREETDSCONF environment variable to point to it.
+  ///
+  /// Parameters:
+  /// - [tdsVersion]: e.g., "7.4", "7.3", "7.2"
+  /// - [encryption]: "off", "request", or "require"
+  /// - [opensslCiphers]: OpenSSL cipher suite string
+  Future<void> _configureFreeTds({
+    String? tdsVersion,
+    String? encryption,
+    String? opensslCiphers,
+  }) async {
+    if (_db == null) return;
+
+    try {
+      // Build freetds.conf content
+      final lines = <String>[];
+      if (tdsVersion != null) {
+        lines.add('tds version = $tdsVersion');
+      }
+      if (encryption != null) {
+        // FreeTDS encryption values: off, request, require
+        lines.add('encryption = $encryption');
+      }
+      if (opensslCiphers != null) {
+        lines.add('# OpenSSL cipher configuration (if applicable)');
+        lines.add('openssl ciphers = $opensslCiphers');
+      }
+
+      if (lines.isEmpty) return;
+
+      final confContent = lines.join('\n');
+      final tmpDir = Directory.systemTemp;
+      final confFile = File(
+        '${tmpDir.path}${Platform.pathSeparator}freetds_${DateTime.now().millisecondsSinceEpoch}.conf',
+      );
+
+      // Write configuration file
+      await confFile.writeAsString(confContent);
+      MssqlLogger.i(
+        '_configureFreeTds | file=${confFile.path} | content=$confContent',
+      );
+
+      // Set FREETDSCONF environment variable
+      final ok = _db!.setEnvironmentVariable('FREETDSCONF', confFile.path);
+      if (ok) {
+        MssqlLogger.i('_configureFreeTds | env=FREETDSCONF | path=${confFile.path}');
+      } else {
+        MssqlLogger.w('_configureFreeTds | env-set | failed');
+      }
+    } catch (e) {
+      MssqlLogger.w('_configureFreeTds | error=$e');
+      rethrow;
+    }
   }
 
   /// Bulk insert rows into [tableName].
