@@ -111,6 +111,20 @@ const int DBSETPWD = 3;
 const int DBRPCRECOMPILE = 0x0001;
 const int DBRPCRESET = 0x0002;
 
+// dbopen() is a C preprocessor macro in sybdb.h, not an exported symbol —
+// it is NOT present in libsybdb.so and a direct lookupFunction('dbopen') fails
+// at runtime. Per sybdb.h:
+//   #ifdef MSDBLIB
+//   #define dbopen(x,y) tdsdbopen((x),(y), 1)
+//   #else
+//   #define dbopen(x,y) tdsdbopen((x),(y), 0)
+//   #endif
+// The third argument is the `msdblib` flag (Sybase DB-Library source
+// compatibility mode), NOT a TDS/DB-Lib version constant — DBVERSION_100
+// is an unrelated constant used only with dbsetversion(). The shipped
+// libsybdb.so is a standard (non-MSDBLIB) FreeTDS build, so msdblib=0.
+const int DBOPEN_MSDBLIB = 0;
+
 // Typedefs
 //
 // Group: Connection lifecycle (init/login/open/close)
@@ -133,11 +147,13 @@ typedef _dbloginDart = Pointer<LOGINREC> Function();
 typedef _dbsetlnameC = Int32 Function(Pointer<LOGINREC>, Pointer<Utf8>, Int32);
 typedef _dbsetlnameDart = int Function(Pointer<LOGINREC>, Pointer<Utf8>, int);
 
-/// C: DBPROCESS* dbopen(LOGINREC*, const char* server) — Open connection
-typedef _dbopenC =
-    Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>);
-typedef _dbopenDart =
-    Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>);
+/// C: DBPROCESS* tdsdbopen(LOGINREC*, const char* server, int msdblib)
+/// — the real exported symbol behind the dbopen() macro (see DBOPEN_MSDBLIB
+/// above). dbopen() itself does not exist in libsybdb.so.
+typedef _tdsdbopenC =
+    Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>, Int32);
+typedef _tdsdbopenDart =
+    Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>, int);
 
 /// C: int dbclose(DBPROCESS*) — Close connection (DBPROCESS)
 typedef _dbcloseC = Int32 Function(Pointer<DBPROCESS>);
@@ -423,7 +439,9 @@ class DBLib {
   late final _dbinitDart dbinit;
   late final _dbloginDart dblogin;
   late final _dbsetlnameDart dbsetlname;
-  late final _dbopenDart dbopen;
+  // dbopen() has no exported symbol; see the dbopen() wrapper method below,
+  // which calls the real tdsdbopen() entry point held here.
+  late final _tdsdbopenDart _tdsdbopen;
   late final _dbcloseDart dbclose;
   late final _dbexitDart dbexit;
 
@@ -465,120 +483,122 @@ class DBLib {
 
   DBLib(this._lib) {
     // Lookups: Connection lifecycle (init/login/open/close)
-    dbinit = _lib.lookupFunction<_dbinitC, _dbinitDart>(
+    dbinit = _lookup<_dbinitC, _dbinitDart>(
       'dbinit',
     ); // Initialize DB-Lib
-    dblogin = _lib.lookupFunction<_dbloginC, _dbloginDart>(
+    dblogin = _lookup<_dbloginC, _dbloginDart>(
       'dblogin',
     ); // Create LOGINREC
     // DBSETLUSER/DBSETLPWD are macros -> bind the underlying function dbsetlname
-    dbsetlname = _lib.lookupFunction<_dbsetlnameC, _dbsetlnameDart>(
+    dbsetlname = _lookup<_dbsetlnameC, _dbsetlnameDart>(
       'dbsetlname',
     ); // Set LOGINREC field by selector
-    dbopen = _lib.lookupFunction<_dbopenC, _dbopenDart>(
-      'dbopen',
+    // dbopen() is a macro (see DBOPEN_MSDBLIB comment above); bind the real
+    // exported symbol tdsdbopen and expose it via the dbopen() wrapper method.
+    _tdsdbopen = _lookup<_tdsdbopenC, _tdsdbopenDart>(
+      'tdsdbopen',
     ); // Open DBPROCESS connection
-    dbclose = _lib.lookupFunction<_dbcloseC, _dbcloseDart>(
+    dbclose = _lookup<_dbcloseC, _dbcloseDart>(
       'dbclose',
     ); // Close DBPROCESS
-    dbexit = _lib.lookupFunction<_dbexitC, _dbexitDart>(
+    dbexit = _lookup<_dbexitC, _dbexitDart>(
       'dbexit',
     ); // Shutdown DB-Lib
 
     // Lookups: Command execution and results iteration (DML/DDL + rows)
-    dbcmd = _lib.lookupFunction<_dbcmdC, _dbcmdDart>('dbcmd'); // Queue SQL text
-    dbsqlexec = _lib.lookupFunction<_dbsqlexecC, _dbsqlexecDart>(
+    dbcmd = _lookup<_dbcmdC, _dbcmdDart>('dbcmd'); // Queue SQL text
+    dbsqlexec = _lookup<_dbsqlexecC, _dbsqlexecDart>(
       'dbsqlexec',
     ); // Execute queued SQL
-    dbresults = _lib.lookupFunction<_dbresultsC, _dbresultsDart>(
+    dbresults = _lookup<_dbresultsC, _dbresultsDart>(
       'dbresults',
     ); // Iterate result sets
-    dbnextrow = _lib.lookupFunction<_dbnextrowC, _dbnextrowDart>(
+    dbnextrow = _lookup<_dbnextrowC, _dbnextrowDart>(
       'dbnextrow',
     ); // Fetch next row
-    dbnumcols = _lib.lookupFunction<_dbnumcolsC, _dbnumcolsDart>(
+    dbnumcols = _lookup<_dbnumcolsC, _dbnumcolsDart>(
       'dbnumcols',
     ); // Column count
-    dbcolname = _lib.lookupFunction<_dbcolnameC, _dbcolnameDart>(
+    dbcolname = _lookup<_dbcolnameC, _dbcolnameDart>(
       'dbcolname',
     ); // Column name
-    dbcoltype = _lib.lookupFunction<_dbcoltypeC, _dbcoltypeDart>(
+    dbcoltype = _lookup<_dbcoltypeC, _dbcoltypeDart>(
       'dbcoltype',
     ); // Column type code
-    dbdatlen = _lib.lookupFunction<_dbdatlenC, _dbdatlenDart>(
+    dbdatlen = _lookup<_dbdatlenC, _dbdatlenDart>(
       'dbdatlen',
     ); // Current value byte length
-    dbdata = _lib.lookupFunction<_dbdataC, _dbdataDart>(
+    dbdata = _lookup<_dbdataC, _dbdataDart>(
       'dbdata',
     ); // Current value pointer
-    dbcount = _lib.lookupFunction<_dbcountC, _dbcountDart>(
+    dbcount = _lookup<_dbcountC, _dbcountDart>(
       'dbcount',
     ); // Rows affected
 
     // Lookups: Timeouts and database selection
-    dbsetlogintime = _lib.lookupFunction<_dbsetlogintimeC, _dbsetlogintimeDart>(
+    dbsetlogintime = _lookup<_dbsetlogintimeC, _dbsetlogintimeDart>(
       'dbsetlogintime',
     ); // Login timeout
-    dbsettime = _lib.lookupFunction<_dbsettimeC, _dbsettimeDart>(
+    dbsettime = _lookup<_dbsettimeC, _dbsettimeDart>(
       'dbsettime',
     ); // Statement timeout
-    dbuse = _lib.lookupFunction<_dbuseC, _dbuseDart>(
+    dbuse = _lookup<_dbuseC, _dbuseDart>(
       'dbuse',
     ); // Change database
-    dbsetlbool = _lib.lookupFunction<_dbsetlboolC, _dbsetlboolDart>(
+    dbsetlbool = _lookup<_dbsetlboolC, _dbsetlboolDart>(
       'dbsetlbool',
     ); // Toggle login options (e.g., BCP)
-    dbsetopt = _lib.lookupFunction<_dbsetoptC, _dbsetoptDart>(
+    dbsetopt = _lookup<_dbsetoptC, _dbsetoptDart>(
       'dbsetopt',
     ); // Set session options (e.g., DBTEXTSIZE)
 
     // Lookups: RPC for parameterized queries
-    dbrpcinit = _lib.lookupFunction<_dbrpcinitC, _dbrpcinitDart>(
+    dbrpcinit = _lookup<_dbrpcinitC, _dbrpcinitDart>(
       'dbrpcinit',
     ); // Start RPC (e.g., sp_executesql)
-    dbrpcparam = _lib.lookupFunction<_dbrpcparamC, _dbrpcparamDart>(
+    dbrpcparam = _lookup<_dbrpcparamC, _dbrpcparamDart>(
       'dbrpcparam',
     ); // Add RPC parameter
-    dbrpcsend = _lib.lookupFunction<_dbrpcsendC, _dbrpcsendDart>(
+    dbrpcsend = _lookup<_dbrpcsendC, _dbrpcsendDart>(
       'dbrpcsend',
     ); // Send RPC
-    dbsqlok = _lib.lookupFunction<_dbsqlokC, _dbsqlokDart>(
+    dbsqlok = _lookup<_dbsqlokC, _dbsqlokDart>(
       'dbsqlok',
     ); // Finalize send
 
     // Lookups: error and message handlers
-    dberrhandle = _lib.lookupFunction<_dberrhandleC, _dberrhandleDart>(
+    dberrhandle = _lookup<_dberrhandleC, _dberrhandleDart>(
       'dberrhandle',
     );
-    dbmsghandle = _lib.lookupFunction<_dbmsghandleC, _dbmsghandleDart>(
+    dbmsghandle = _lookup<_dbmsghandleC, _dbmsghandleDart>(
       'dbmsghandle',
     );
 
     // Lookups: BCP (bulk copy) high-throughput inserts
-    bcp_init = _lib.lookupFunction<_bcp_initC, _bcp_initDart>(
+    bcp_init = _lookup<_bcp_initC, _bcp_initDart>(
       'bcp_init',
     ); // Init bulk copy
-    bcp_bind = _lib.lookupFunction<_bcp_bindC, _bcp_bindDart>(
+    bcp_bind = _lookup<_bcp_bindC, _bcp_bindDart>(
       'bcp_bind',
     ); // Bind program variables
-    bcp_sendrow = _lib.lookupFunction<_bcp_sendrowC, _bcp_sendrowDart>(
+    bcp_sendrow = _lookup<_bcp_sendrowC, _bcp_sendrowDart>(
       'bcp_sendrow',
     ); // Send row
-    bcp_batch = _lib.lookupFunction<_bcp_batchC, _bcp_batchDart>(
+    bcp_batch = _lookup<_bcp_batchC, _bcp_batchDart>(
       'bcp_batch',
     ); // Commit batch
-    bcp_done = _lib.lookupFunction<_bcp_doneC, _bcp_doneDart>(
+    bcp_done = _lookup<_bcp_doneC, _bcp_doneDart>(
       'bcp_done',
     ); // Finalize bulk copy
-    bcp_collen = _lib.lookupFunction<_bcp_collenC, _bcp_collenDart>(
+    bcp_collen = _lookup<_bcp_collenC, _bcp_collenDart>(
       'bcp_collen',
     ); // Set column length
-    bcp_colptr = _lib.lookupFunction<_bcp_colptrC, _bcp_colptrDart>(
+    bcp_colptr = _lookup<_bcp_colptrC, _bcp_colptrDart>(
       'bcp_colptr',
     ); // Set column pointer
 
     // Lookup: Type conversion helper
-    dbconvert = _lib.lookupFunction<_dbconvertC, _dbconvertDart>(
+    dbconvert = _lookup<_dbconvertC, _dbconvertDart>(
       'dbconvert',
     ); // Convert values (fallback)
 
@@ -591,6 +611,35 @@ class DBLib {
       _setenv = null;
     }
   }
+
+  /// Looks up [symbol] in the DB-Lib shared library and fails loudly if it
+  /// cannot be found — never swallows a lookup failure.
+  ///
+  /// FreeTDS's sybdb.h wraps several DB-Lib entry points (dbopen,
+  /// DBSETLUSER, DBSETLPWD, ...) as C preprocessor macros rather than
+  /// exported functions; looking one of those names up with dlsym/FFI fails
+  /// even though the underlying real symbol (e.g. tdsdbopen) exists. When a
+  /// lookup fails, name the symbol and call out that possibility so the
+  /// failure is diagnosable instead of a bare "undefined symbol" error.
+  DF _lookup<NF extends Function, DF extends Function>(String symbol) {
+    try {
+      return _lib.lookupFunction<NF, DF>(symbol);
+    } on ArgumentError catch (e) {
+      throw ArgumentError(
+        'Failed to look up FreeTDS symbol "$symbol": $e. '
+        'If "$symbol" is a macro in FreeTDS\'s sybdb.h rather than an '
+        'exported function (as with dbopen -> tdsdbopen), bind the real '
+        'underlying symbol and wrap it to preserve the old call signature.',
+      );
+    }
+  }
+
+  /// C: `DBPROCESS* dbopen(LOGINREC*, const char* server)` — this is a
+  /// macro in sybdb.h, not an exported symbol; see DBOPEN_MSDBLIB above.
+  /// This wrapper preserves the original macro name and 2-arg call shape
+  /// for existing call sites while dispatching to the real tdsdbopen().
+  Pointer<DBPROCESS> dbopen(Pointer<LOGINREC> login, Pointer<Utf8> server) =>
+      _tdsdbopen(login, server, DBOPEN_MSDBLIB);
 
   /// Set the username on a LOGINREC using the DBSETUSER selector.
   ///
