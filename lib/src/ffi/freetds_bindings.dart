@@ -488,124 +488,126 @@ class DBLib {
 
   DBLib(this._lib) {
     // Lookups: Connection lifecycle (init/login/open/close)
-    dbinit = _lookup<_dbinitC, _dbinitDart>(
+    dbinit = _lookup<_dbinitC>(
       'dbinit',
-    ); // Initialize DB-Lib
-    dblogin = _lookup<_dbloginC, _dbloginDart>(
+    ).asFunction<_dbinitDart>(); // Initialize DB-Lib
+    dblogin = _lookup<_dbloginC>(
       'dblogin',
-    ); // Create LOGINREC
+    ).asFunction<_dbloginDart>(); // Create LOGINREC
     // DBSETLUSER/DBSETLPWD are macros -> bind the underlying function dbsetlname
-    dbsetlname = _lookup<_dbsetlnameC, _dbsetlnameDart>(
+    dbsetlname = _lookup<_dbsetlnameC>(
       'dbsetlname',
-    ); // Set LOGINREC field by selector
+    ).asFunction<_dbsetlnameDart>(); // Set LOGINREC field by selector
     // dbopen() is a macro (see DBOPEN_MSDBLIB comment above); bind the real
     // exported symbol tdsdbopen and expose it via the dbopen() wrapper method.
-    _tdsdbopen = _lookup<_tdsdbopenC, _tdsdbopenDart>(
+    _tdsdbopen = _lookup<_tdsdbopenC>(
       'tdsdbopen',
-    ); // Open DBPROCESS connection
-    dbclose = _lookup<_dbcloseC, _dbcloseDart>(
+    ).asFunction<_tdsdbopenDart>(); // Open DBPROCESS connection
+    dbclose = _lookup<_dbcloseC>(
       'dbclose',
-    ); // Close DBPROCESS
-    dbexit = _lookup<_dbexitC, _dbexitDart>(
+    ).asFunction<_dbcloseDart>(); // Close DBPROCESS
+    dbexit = _lookup<_dbexitC>(
       'dbexit',
-    ); // Shutdown DB-Lib
+    ).asFunction<_dbexitDart>(); // Shutdown DB-Lib
 
     // Lookups: Command execution and results iteration (DML/DDL + rows)
-    dbcmd = _lookup<_dbcmdC, _dbcmdDart>('dbcmd'); // Queue SQL text
-    dbsqlexec = _lookup<_dbsqlexecC, _dbsqlexecDart>(
+    dbcmd = _lookup<_dbcmdC>(
+      'dbcmd',
+    ).asFunction<_dbcmdDart>(); // Queue SQL text
+    dbsqlexec = _lookup<_dbsqlexecC>(
       'dbsqlexec',
-    ); // Execute queued SQL
-    dbresults = _lookup<_dbresultsC, _dbresultsDart>(
+    ).asFunction<_dbsqlexecDart>(); // Execute queued SQL
+    dbresults = _lookup<_dbresultsC>(
       'dbresults',
-    ); // Iterate result sets
-    dbnextrow = _lookup<_dbnextrowC, _dbnextrowDart>(
+    ).asFunction<_dbresultsDart>(); // Iterate result sets
+    dbnextrow = _lookup<_dbnextrowC>(
       'dbnextrow',
-    ); // Fetch next row
-    dbnumcols = _lookup<_dbnumcolsC, _dbnumcolsDart>(
+    ).asFunction<_dbnextrowDart>(); // Fetch next row
+    dbnumcols = _lookup<_dbnumcolsC>(
       'dbnumcols',
-    ); // Column count
-    dbcolname = _lookup<_dbcolnameC, _dbcolnameDart>(
+    ).asFunction<_dbnumcolsDart>(); // Column count
+    dbcolname = _lookup<_dbcolnameC>(
       'dbcolname',
-    ); // Column name
-    dbcoltype = _lookup<_dbcoltypeC, _dbcoltypeDart>(
+    ).asFunction<_dbcolnameDart>(); // Column name
+    dbcoltype = _lookup<_dbcoltypeC>(
       'dbcoltype',
-    ); // Column type code
-    dbdatlen = _lookup<_dbdatlenC, _dbdatlenDart>(
+    ).asFunction<_dbcoltypeDart>(); // Column type code
+    dbdatlen = _lookup<_dbdatlenC>(
       'dbdatlen',
-    ); // Current value byte length
-    dbdata = _lookup<_dbdataC, _dbdataDart>(
+    ).asFunction<_dbdatlenDart>(); // Current value byte length
+    dbdata = _lookup<_dbdataC>(
       'dbdata',
-    ); // Current value pointer
-    dbcount = _lookup<_dbcountC, _dbcountDart>(
+    ).asFunction<_dbdataDart>(); // Current value pointer
+    dbcount = _lookup<_dbcountC>(
       'dbcount',
-    ); // Rows affected
+    ).asFunction<_dbcountDart>(); // Rows affected
 
     // Lookups: Timeouts and database selection
-    dbsetlogintime = _lookup<_dbsetlogintimeC, _dbsetlogintimeDart>(
+    dbsetlogintime = _lookup<_dbsetlogintimeC>(
       'dbsetlogintime',
-    ); // Login timeout
-    dbsettime = _lookup<_dbsettimeC, _dbsettimeDart>(
+    ).asFunction<_dbsetlogintimeDart>(); // Login timeout
+    dbsettime = _lookup<_dbsettimeC>(
       'dbsettime',
-    ); // Statement timeout
-    dbuse = _lookup<_dbuseC, _dbuseDart>(
+    ).asFunction<_dbsettimeDart>(); // Statement timeout
+    dbuse = _lookup<_dbuseC>(
       'dbuse',
-    ); // Change database
-    dbsetlbool = _lookup<_dbsetlboolC, _dbsetlboolDart>(
+    ).asFunction<_dbuseDart>(); // Change database
+    dbsetlbool = _lookup<_dbsetlboolC>(
       'dbsetlbool',
-    ); // Toggle login options (e.g., BCP)
-    dbsetopt = _lookup<_dbsetoptC, _dbsetoptDart>(
+    ).asFunction<_dbsetlboolDart>(); // Toggle login options (e.g., BCP)
+    dbsetopt = _lookup<_dbsetoptC>(
       'dbsetopt',
-    ); // Set session options (e.g., DBTEXTSIZE)
+    ).asFunction<_dbsetoptDart>(); // Set session options (e.g., DBTEXTSIZE)
 
     // Lookups: RPC for parameterized queries
-    dbrpcinit = _lookup<_dbrpcinitC, _dbrpcinitDart>(
+    dbrpcinit = _lookup<_dbrpcinitC>(
       'dbrpcinit',
-    ); // Start RPC (e.g., sp_executesql)
-    dbrpcparam = _lookup<_dbrpcparamC, _dbrpcparamDart>(
+    ).asFunction<_dbrpcinitDart>(); // Start RPC (e.g., sp_executesql)
+    dbrpcparam = _lookup<_dbrpcparamC>(
       'dbrpcparam',
-    ); // Add RPC parameter
-    dbrpcsend = _lookup<_dbrpcsendC, _dbrpcsendDart>(
+    ).asFunction<_dbrpcparamDart>(); // Add RPC parameter
+    dbrpcsend = _lookup<_dbrpcsendC>(
       'dbrpcsend',
-    ); // Send RPC
-    dbsqlok = _lookup<_dbsqlokC, _dbsqlokDart>(
+    ).asFunction<_dbrpcsendDart>(); // Send RPC
+    dbsqlok = _lookup<_dbsqlokC>(
       'dbsqlok',
-    ); // Finalize send
+    ).asFunction<_dbsqlokDart>(); // Finalize send
 
     // Lookups: error and message handlers
-    dberrhandle = _lookup<_dberrhandleC, _dberrhandleDart>(
+    dberrhandle = _lookup<_dberrhandleC>(
       'dberrhandle',
-    );
-    dbmsghandle = _lookup<_dbmsghandleC, _dbmsghandleDart>(
+    ).asFunction<_dberrhandleDart>();
+    dbmsghandle = _lookup<_dbmsghandleC>(
       'dbmsghandle',
-    );
+    ).asFunction<_dbmsghandleDart>();
 
     // Lookups: BCP (bulk copy) high-throughput inserts
-    bcp_init = _lookup<_bcp_initC, _bcp_initDart>(
+    bcp_init = _lookup<_bcp_initC>(
       'bcp_init',
-    ); // Init bulk copy
-    bcp_bind = _lookup<_bcp_bindC, _bcp_bindDart>(
+    ).asFunction<_bcp_initDart>(); // Init bulk copy
+    bcp_bind = _lookup<_bcp_bindC>(
       'bcp_bind',
-    ); // Bind program variables
-    bcp_sendrow = _lookup<_bcp_sendrowC, _bcp_sendrowDart>(
+    ).asFunction<_bcp_bindDart>(); // Bind program variables
+    bcp_sendrow = _lookup<_bcp_sendrowC>(
       'bcp_sendrow',
-    ); // Send row
-    bcp_batch = _lookup<_bcp_batchC, _bcp_batchDart>(
+    ).asFunction<_bcp_sendrowDart>(); // Send row
+    bcp_batch = _lookup<_bcp_batchC>(
       'bcp_batch',
-    ); // Commit batch
-    bcp_done = _lookup<_bcp_doneC, _bcp_doneDart>(
+    ).asFunction<_bcp_batchDart>(); // Commit batch
+    bcp_done = _lookup<_bcp_doneC>(
       'bcp_done',
-    ); // Finalize bulk copy
-    bcp_collen = _lookup<_bcp_collenC, _bcp_collenDart>(
+    ).asFunction<_bcp_doneDart>(); // Finalize bulk copy
+    bcp_collen = _lookup<_bcp_collenC>(
       'bcp_collen',
-    ); // Set column length
-    bcp_colptr = _lookup<_bcp_colptrC, _bcp_colptrDart>(
+    ).asFunction<_bcp_collenDart>(); // Set column length
+    bcp_colptr = _lookup<_bcp_colptrC>(
       'bcp_colptr',
-    ); // Set column pointer
+    ).asFunction<_bcp_colptrDart>(); // Set column pointer
 
     // Lookup: Type conversion helper
-    dbconvert = _lookup<_dbconvertC, _dbconvertDart>(
+    dbconvert = _lookup<_dbconvertC>(
       'dbconvert',
-    ); // Convert values (fallback)
+    ).asFunction<_dbconvertDart>(); // Convert values (fallback)
 
     // Try to load setenv from libc for environment variable support
     try {
@@ -626,9 +628,9 @@ class DBLib {
   /// even though the underlying real symbol (e.g. tdsdbopen) exists. When a
   /// lookup fails, name the symbol and call out that possibility so the
   /// failure is diagnosable instead of a bare "undefined symbol" error.
-  DF _lookup<NF extends Function, DF extends Function>(String symbol) {
+  Pointer<NativeFunction<NF>> _lookup<NF extends Function>(String symbol) {
     try {
-      return _lib.lookupFunction<NF, DF>(symbol);
+      return _lib.lookup<NativeFunction<NF>>(symbol);
     } on ArgumentError catch (e) {
       throw ArgumentError(
         'Failed to look up FreeTDS symbol "$symbol": $e. '
