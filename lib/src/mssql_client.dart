@@ -165,7 +165,10 @@ class MssqlClient {
 
         // Enable BCP on this login so that bulk insert APIs are available on the session.
         try {
-          final rcBcp = _db!.dbsetlbool(login, DBSETBCP, 1);
+          // dbsetlbool(LOGINREC*, int value, int which) — value first, then
+          // the option selector (DBSETBCP), per sybdb.h's own
+          // `BCP_SETL(x,y) dbsetlbool((x),(y),DBSETBCP)` macro.
+          final rcBcp = _db!.dbsetlbool(login, 1, DBSETBCP);
           MssqlLogger.i(
             'connect | op=dbsetlbool | option=DBSETBCP | value=1 | rc=$rcBcp',
           );

@@ -218,7 +218,9 @@ typedef _dbuseC = Int32 Function(Pointer<DBPROCESS>, Pointer<Utf8>);
 typedef _dbuseDart = int Function(Pointer<DBPROCESS>, Pointer<Utf8>);
 
 // Group: LOGINREC options (e.g., enable BCP using DBSETBCP)
-/// C: int dbsetlbool(LOGINREC*, int option, int value) — Toggle login options
+/// C: int dbsetlbool(LOGINREC*, int value, int which) — Toggle login options.
+/// Note the parameter order: value comes before the option selector (which),
+/// e.g. sybdb.h's own `BCP_SETL(x,y) dbsetlbool((x),(y),DBSETBCP)` macro.
 typedef _dbsetlboolC = Int32 Function(Pointer<LOGINREC>, Int32, Int32);
 typedef _dbsetlboolDart = int Function(Pointer<LOGINREC>, int, int);
 
