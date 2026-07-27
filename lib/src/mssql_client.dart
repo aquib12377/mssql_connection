@@ -259,7 +259,7 @@ class MssqlClient {
   ///
   /// Behavior:
   /// - If no active connection exists, returns immediately (idempotent).
-  /// - Calls dbclose(DBPROCESS*) and logs the return code.
+  /// - Calls dbclose(DBPROCESS*) (returns void in sybdb.h).
   /// - Clears the internal DBPROCESS pointer and connected flag.
   ///
   /// Note: This does not call dbexit(); the library remains loaded for reuse.
@@ -273,8 +273,9 @@ class MssqlClient {
     }
     try {
       MssqlLogger.i('close | op=dbclose');
-      final rc = _db!.dbclose(_dbproc!);
-      MssqlLogger.i('close | op=dbclose | rc=$rc');
+      // dbclose() returns void in sybdb.h; there is no return code to log.
+      _db!.dbclose(_dbproc!);
+      MssqlLogger.i('close | op=dbclose | done=true');
     } catch (e) {
       MssqlLogger.w('close | op=dbclose | error=$e');
     } finally {

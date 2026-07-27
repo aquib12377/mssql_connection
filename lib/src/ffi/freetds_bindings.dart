@@ -155,9 +155,12 @@ typedef _tdsdbopenC =
 typedef _tdsdbopenDart =
     Pointer<DBPROCESS> Function(Pointer<LOGINREC>, Pointer<Utf8>, int);
 
-/// C: int dbclose(DBPROCESS*) — Close connection (DBPROCESS)
-typedef _dbcloseC = Int32 Function(Pointer<DBPROCESS>);
-typedef _dbcloseDart = int Function(Pointer<DBPROCESS>);
+/// C: void dbclose(DBPROCESS*) — Close connection (DBPROCESS).
+/// Note: dbclose returns void in sybdb.h, not RETCODE/int. Binding it with a
+/// non-void return type would read whatever garbage happens to be in the
+/// return register after the call.
+typedef _dbcloseC = Void Function(Pointer<DBPROCESS>);
+typedef _dbcloseDart = void Function(Pointer<DBPROCESS>);
 
 /// C: void dbexit(void) — Shutdown DB-Lib (call when done with all DB work)
 typedef _dbexitC = Void Function();
