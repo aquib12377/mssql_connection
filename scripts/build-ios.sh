@@ -34,7 +34,7 @@ build_one() {
 
   # FLAGS
   SDK_PATH="$(xcrun --sdk $SDK --show-sdk-path)"
-  CFLAGS="-isysroot $SDK_PATH -fembed-bitcode"
+  CFLAGS="-isysroot $SDK_PATH"
   LDFLAGS="-isysroot $SDK_PATH"
 
   # Select the first arch for configure (we'll fatten later if needed)
