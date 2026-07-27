@@ -13,6 +13,7 @@
 
 import 'dart:convert';
 import 'dart:ffi';
+import 'dart:io' show Platform;
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
@@ -609,9 +610,14 @@ class DBLib {
       'dbconvert',
     ).asFunction<_dbconvertDart>(); // Convert values (fallback)
 
-    // Try to load setenv from libc for environment variable support
+    // Try to load setenv from libc for environment variable support.
+    // 'libc.so.6' is the Linux/Android soname; Darwin (iOS/macOS) has no such
+    // file, but libSystem is already mapped into the process, so look it up
+    // via the process image there instead.
     try {
-      final libc = DynamicLibrary.open('libc.so.6');
+      final libc = (Platform.isIOS || Platform.isMacOS)
+          ? DynamicLibrary.process()
+          : DynamicLibrary.open('libc.so.6');
       _setenv = libc.lookupFunction<_setenvC, _setenvDart>('setenv');
     } catch (_) {
       // setenv not available; environment configuration will be skipped

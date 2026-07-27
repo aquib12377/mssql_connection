@@ -15,6 +15,7 @@ All notable changes to this project will be documented in this file.
 
 ### Fixed
 - More robust Unicode/large text handling and consistent Base64 encoding for binary columns.
+- iOS was missing the CocoaPods podspec and `ios.ffiPlugin` plugin declaration needed to actually link the bundled FreeTDS XCFrameworks into a consuming app; `setEnvironmentVariable` (used by TDSDUMP tracing and FREETDSCONF-based TDS version/encryption config) also silently no-op'd on iOS/macOS due to a Linux-only `libc.so.6` lookup.
 
 ### Breaking
 - `getData`/`writeData` return a unified JSON object instead of an array-only payload. Update parsers accordingly.
