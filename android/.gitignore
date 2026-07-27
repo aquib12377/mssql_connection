@@ -1,0 +1,7 @@
+cd D:\mssql_connection
+@"
+.gradle/
+build/
+local.properties
+.cxx/
+"@ | Out-File -Encoding utf8 android\.gitignore

@@ -1,0 +1,26 @@
+group 'com.hiteshdon.mssql_connection'
+version '1.0'
+
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.1.0' }
+}
+
+rootProject.allprojects {
+    repositories { google(); mavenCentral() }
+}
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.hiteshdon.mssql_connection'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 21
+    }
+
+    sourceSets {
+        main.jniLibs.srcDirs = ['src/main/jniLibs']
+    }
+}
