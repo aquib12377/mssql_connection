@@ -16,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### Fixed
 - More robust Unicode/large text handling and consistent Base64 encoding for binary columns.
 - iOS was missing the CocoaPods podspec and `ios.ffiPlugin` plugin declaration needed to actually link the bundled FreeTDS XCFrameworks into a consuming app; `setEnvironmentVariable` (used by TDSDUMP tracing and FREETDSCONF-based TDS version/encryption config) also silently no-op'd on iOS/macOS due to a Linux-only `libc.so.6` lookup.
+- iOS: `DynamicLibrary.process().lookup('dbinit')` failed with "symbol not found" because nothing in native code referenced the vendored FreeTDS DB-Lib symbols, so the linker dead-stripped them. Added a small C shim (`ios/Classes/mssql_connection_force_link.c`) that references every symbol the Dart bindings look up, keeping them in the final binary.
 
 ### Breaking
 - `getData`/`writeData` return a unified JSON object instead of an array-only payload. Update parsers accordingly.
