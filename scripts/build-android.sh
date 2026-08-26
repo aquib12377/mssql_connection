@@ -20,13 +20,18 @@ for ABI in $ABIS; do
   rm -rf "$BUILD_DIR" && mkdir -p "$BUILD_DIR"
   pushd "$BUILD_DIR" >/dev/null
 
+  # -Wl,-z,max-page-size=16384: Google Play requires all 64-bit native
+  # libraries to be aligned for 16 KB memory pages (newer Android
+  # devices). The NDK version pinned below predates that being the
+  # linker default, so force it explicitly.
   cmake "$SRC_DIR" \
     -DCMAKE_TOOLCHAIN_FILE="$ANDROID_NDK/build/cmake/android.toolchain.cmake" \
     -DANDROID_ABI="$ABI" \
     -DANDROID_PLATFORM=21 \
     -DBUILD_SHARED_LIBS=ON \
   -DCMAKE_BUILD_TYPE=Release \
-  -DENABLE_MSDBLIB=ON
+  -DENABLE_MSDBLIB=ON \
+  -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-z,max-page-size=16384"
 
   # Work around Android lacking system iconv: force-disable HAVE_ICONV in generated config.h
   # so FreeTDS uses its internal replacements instead of system iconv.
