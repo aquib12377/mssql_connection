@@ -257,6 +257,16 @@ jobs:
             git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
           fi
 
+      - name: Patch FreeTDS CMakeLists for Android (no gssapi_krb5)
+        run: |
+          # Upstream unconditionally links gssapi_krb5 on every non-Windows
+          # target (CMakeLists.txt: "# TODO check libraries"), even though
+          # ENABLE_KRB5 defaults to OFF. The Android NDK sysroot has no
+          # libgssapi_krb5, so the final link step fails with
+          # "unable to find library -lgssapi_krb5". Drop it for Android only.
+          sed -i 's/set(lib_NETWORK gssapi_krb5)/set(lib_NETWORK "")/' \
+            third_party/freetds-1.5.4/CMakeLists.txt
+
       - name: Install build tools (gperf)
         run: |
           sudo apt-get update
