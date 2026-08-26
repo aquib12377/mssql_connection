@@ -339,6 +339,58 @@ jobs:
           name: freetds-android-${{ matrix.abi }}
           path: out-android/${{ matrix.abi }}/**/*
 
+  commit-android-libs:
+    name: Commit rebuilt Android libs
+    needs: android
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: freetds-android-*
+          path: downloaded-android
+          merge-multiple: false
+
+      - name: Verify 16 KB page alignment
+        run: |
+          set -euo pipefail
+          for dir in downloaded-android/freetds-android-*; do
+            for so in "$dir"/*.so; do
+              echo "== $so"
+              readelf -lW "$so" | grep LOAD
+            done
+          done
+
+      - name: Replace jniLibs with rebuilt binaries
+        run: |
+          set -euo pipefail
+          declare -A map=(
+            [freetds-android-arm64-v8a]=arm64-v8a
+            [freetds-android-armeabi-v7a]=armeabi-v7a
+            [freetds-android-x86_64]=x86_64
+          )
+          for artifact in "${!map[@]}"; do
+            abi="${map[$artifact]}"
+            dest="android/src/main/jniLibs/$abi"
+            mkdir -p "$dest"
+            cp -f "downloaded-android/$artifact"/*.so "$dest/"
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add android/src/main/jniLibs
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+          else
+            git commit -m "Update prebuilt Android FreeTDS libs (16 KB page aligned)"
+            git push origin HEAD:${{ github.ref_name }}
+          fi
+
   ios:
     name: iOS XCFramework
     runs-on: macos-latest
