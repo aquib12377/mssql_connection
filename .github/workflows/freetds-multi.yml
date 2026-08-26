@@ -31,7 +31,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf automake libtool pkg-config gettext
+          sudo apt-get install -y build-essential autoconf automake libtool pkg-config gettext gperf
 
       - name: Install deps (macOS)
         if: runner.os == 'macOS'
@@ -256,6 +256,11 @@ jobs:
             rm -rf third_party/freetds-1.5.4
             git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
           fi
+
+      - name: Install build tools (gperf)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gperf
 
       - name: Set up JDK
         uses: actions/setup-java@v4
