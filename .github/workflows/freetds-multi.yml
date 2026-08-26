@@ -19,6 +19,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch FreeTDS source
+        run: |
+          if [ ! -f "third_party/freetds-1.5.4/CMakeLists.txt" ]; then
+            mkdir -p third_party
+            rm -rf third_party/freetds-1.5.4
+            git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
+          fi
+
       - name: Install deps (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -115,6 +123,15 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch FreeTDS source
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "third_party/freetds-1.5.4/CMakeLists.txt")) {
+            New-Item -ItemType Directory -Force -Path third_party | Out-Null
+            Remove-Item -Recurse -Force "third_party/freetds-1.5.4" -ErrorAction SilentlyContinue
+            git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
+          }
 
       - name: Install CMake
         uses: lukka/get-cmake@v3.30.3
@@ -232,6 +249,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Fetch FreeTDS source
+        run: |
+          if [ ! -f "third_party/freetds-1.5.4/CMakeLists.txt" ]; then
+            mkdir -p third_party
+            rm -rf third_party/freetds-1.5.4
+            git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
+          fi
+
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -304,6 +329,14 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Fetch FreeTDS source
+        run: |
+          if [ ! -f "third_party/freetds-1.5.4/CMakeLists.txt" ]; then
+            mkdir -p third_party
+            rm -rf third_party/freetds-1.5.4
+            git clone --depth 1 --branch v1.5.4 https://github.com/FreeTDS/freetds.git third_party/freetds-1.5.4
+          fi
 
       - name: Install deps
         run: |
