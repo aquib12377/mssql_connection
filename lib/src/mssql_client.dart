@@ -20,6 +20,7 @@ class MssqlClient {
   Pointer<DBPROCESS>? _dbproc;
   bool _connected = false;
   String? _lastError;
+  String? _lastTraceFilePath;
 
   MssqlClient({
     required this.server,
@@ -29,6 +30,12 @@ class MssqlClient {
 
   bool get isConnected => _connected;
   String? get lastError => _lastError;
+
+  /// Path to the FreeTDS TDSDUMP trace file from the most recent [connect]
+  /// call made with `enableTraceDump: true`, or null if tracing wasn't
+  /// enabled/failed to enable. Pass this to [getTdsDumpContents] to read the
+  /// trace back.
+  String? get lastTraceFilePath => _lastTraceFilePath;
 
   /// Establish a DB-Lib connection to [server] using [username]/[password].
   ///
@@ -73,13 +80,15 @@ class MssqlClient {
     }
     try {
       _lastError = null;
+      _lastTraceFilePath = null;
       MssqlLogger.i('connect | op=init | status=start');
 
       // Enable verbose FreeTDS tracing if requested
       if (enableTraceDump) {
         try {
-          await _enableTdsDump();
-          MssqlLogger.i('connect | op=tdsdump | status=enabled');
+          _lastTraceFilePath = await _enableTdsDump();
+          MssqlLogger.i('connect | op=tdsdump | status=enabled | '
+              'path=$_lastTraceFilePath');
         } catch (e) {
           MssqlLogger.w('connect | op=tdsdump | error=$e');
         }

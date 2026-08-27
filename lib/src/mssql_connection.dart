@@ -22,6 +22,11 @@ class MssqlConnection {
   /// Returns the last FreeTDS error message if connection failed, or null.
   String? get lastError => _client?.lastError;
 
+  /// Path to the FreeTDS TDSDUMP trace file from the most recent [connect]
+  /// call made with `enableTraceDump: true`, or null if tracing wasn't
+  /// enabled/failed to enable. Pass this to [getTdsDumpContents].
+  String? get lastTraceFilePath => _client?.lastTraceFilePath;
+
   /// Retrieve the contents of the FreeTDS TDSDUMP trace file if tracing was enabled.
   ///
   /// [traceFilePath] should be obtained from a previous connection attempt that had
